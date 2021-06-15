@@ -64,7 +64,12 @@
     (t/is (let [r (sut/rope [1 2 3])]
             (= r (read-string (binding [*print-dup* true]
                                 (pr-str r)))))
-          "read ropes are equal to constructed ones"))
+          "read ropes are equal to constructed ones")
+    (t/is (let [m {:meta ::metadata}
+                r (with-meta (sut/rope [1 2 3]) m)]
+            (= m (meta (read-string (binding [*print-dup* true]
+                                      (pr-str r))))))
+          "metadata of ropes serialized with print-dup is retained after reading back in"))
   (t/testing "print-method"
     (t/is (let [r (sut/rope [1 2 3])]
             (= r (edn/read-string {:readers {'rope sut/rope}} (pr-str r))))
