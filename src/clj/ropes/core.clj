@@ -1,4 +1,10 @@
 (ns ropes.core
+  "A persistent data structure for efficient inserts and views of long sequences.
+
+  The data structure is a sequential collection with metadata support, Clojure's
+  collection equality, ordered collection hashing, and is
+  [[clojure.lang.Counted]]. Individual elements can be [[conj]]oined onto the
+  end of the rope."
   (:refer-clojure :exclude [concat split replace])
   (:import
    (clojure.lang
@@ -53,15 +59,22 @@
     (SeqIterator. (seq this))))
 
 (defn rope
+  "Constructs a [[Rope]].
+  With no arguments, constructs an empty rope with no elements. With one seqable
+  argument, constructs a rope with its elements. The second argument is a
+  metadata map used to construct the rope."
   ([] (rope nil nil))
   ([s] (rope s nil))
   ([s m] (Rope. nil nil (count s) (count s) s m)))
 
 (defn rope?
+  "Returns true if `r` is a [[Rope]]."
   [r]
   (instance? Rope r))
 
 (defn concat
+  "Constructs a [[Rope]] with the elements of each input sequence in order in
+  constant time."
   ([] (rope))
   ([x]
    (if-not (rope? x) (rope x) x))
@@ -74,6 +87,10 @@
    (reduce concat (list* x y more))))
 
 (defn split
+  "Constructs two [[Rope]]s with all the elements before and after `idx` in logarithmic time.
+
+  If the index is within a node, that node's sequence will be split
+  with [[split-at]]."
   [^Rope r idx]
   {:pre [(< idx (count r))]}
   (letfn [(s [^Rope r idx]
@@ -93,6 +110,8 @@
     (s (if-not (rope? r) (rope r) r) idx)))
 
 (defn snip
+  "Constructs a new rope without the elements from `start` to `end` in logarithmic
+  time."
   ([^Rope r start]
    (first (split r start)))
   ([^Rope r start end]
@@ -101,12 +120,16 @@
      (concat r1 r2))))
 
 (defn view
+  "Constructs a new rope with only the elements from `start` to `end` in
+  logarithmic time."
   ([^Rope r start]
    (second (split r start)))
   ([^Rope r start end]
    (first (split (second (split r start)) (- end start)))))
 
 (defn insert
+  "Constructs a new rope with the elements of `s` inserted at `idx` in logarithmic
+  time."
   [^Rope r idx s]
   (if (< idx (count r))
     (let [[r1 r2] (split r idx)]
@@ -114,6 +137,8 @@
     (concat r (if-not (rope? s) (rope s) s))))
 
 (defn replace
+  "Constructs a new rope with the elements from `start` to `end` substituted for
+  the elements of `s` in logarithmic time."
   [^Rope r start end s]
   (insert (snip r start end) start s))
 
