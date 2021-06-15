@@ -58,15 +58,6 @@
   (iterator [this]
     (SeqIterator. (seq this))))
 
-(defn rope
-  "Constructs a [[Rope]].
-  With no arguments, constructs an empty rope with no elements. With one seqable
-  argument, constructs a rope with its elements. The second argument is a
-  metadata map used to construct the rope."
-  ([] (rope nil nil))
-  ([s] (rope s nil))
-  ([s m] (Rope. nil nil (count s) (count s) s m)))
-
 (defn rope?
   "Returns true if `r` is a [[Rope]]."
   [r]
@@ -86,6 +77,18 @@
   ([x y & more]
    (reduce concat (list* x y more))))
 
+(defn rope
+  "Constructs a [[Rope]].
+  With no arguments, constructs an empty rope with no elements. With one seqable
+  argument, constructs a rope with its elements. The second argument is a
+  metadata map used to construct the rope. The third optional argument is a
+  count of elements to partition the sequence into in order to ensure that
+  operations upon the rope are not too expensive."
+  ([] (rope nil))
+  ([s] (Rope. nil nil (count s) (count s) s nil))
+  ([s n] (apply concat (partition-all n s)))
+  ([s n m] (with-meta (rope s n) m)))
+
 (defn split
   "Constructs two [[Rope]]s with all the elements before and after `idx` in logarithmic time.
 
@@ -98,7 +101,7 @@
               (cond
                 (zero? idx) [(rope) r]
                 (= idx (.-count r)) [r (rope)]
-                :else (mapv #(rope % (.-meta r)) (split-at idx (.-data r))))
+                :else (mapv #(with-meta (rope %) (.-meta r)) (split-at idx (.-data r))))
               (if (< idx (.-weight r))
                 (let [[r1 r2] (split (.-left r) idx)]
                   [r1
@@ -152,10 +155,12 @@
 
 (defmethod print-dup Rope
   [v w]
+  (when (meta v)
+    (.write ^Writer w "^")
+    (print-dup (meta v) w)
+    (.write ^Writer w " "))
   (.write ^Writer w "#=(ropes.core/rope [ ")
   (doseq [item (.-data ^Rope v)]
     (print-dup item w)
     (.write ^Writer w " "))
-  (.write ^Writer w "] ")
-  (print-dup (meta v) w)
-  (.write ^Writer w ")"))
+  (.write ^Writer w "] 100)"))
