@@ -95,7 +95,7 @@
   If the index is within a node, that node's sequence will be split
   with [[split-at]]."
   [^Rope r idx]
-  {:pre [(< idx (count r))]}
+  {:pre [(<= idx (count r))]}
   (letfn [(s [^Rope r idx]
             (if (some? (.-data r))
               (cond
