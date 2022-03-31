@@ -57,7 +57,12 @@
     (t/is (= [1 :blah :blah2 3] (sut/replace [1 2 3] 1 2 [:blah :blah2]))
           "replaces elements from the middle of a rope")
     (t/is (= [1 :blah :blah2 2 3] (sut/replace [1 2 3] 1 1 [:blah :blah2]))
-          "acts as insert with equal start and end")))
+          "acts as insert with equal start and end"))
+  (t/testing "view"
+    (t/is (= [:blah :blah2] (sut/view [1 2 :blah :blah2 3] 2 4))
+          "grabs elements from the middle of the rope")
+    (t/is (= [:blah :blah2] (sut/view [1 2 3 :blah :blah2] 3))
+          "grabs elements to the end")))
 
 (t/deftest serialization
   (t/testing "print-dup"
