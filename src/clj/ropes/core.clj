@@ -97,25 +97,31 @@
 (defn split
   "Constructs two [[Rope]]s with all the elements before and after `idx` in logarithmic time.
 
-  If the index is within a node, that node's sequence will be split
-  with [[split-at]]."
-  [^Rope r idx]
-  {:pre [(<= idx (count r))]}
-  (letfn [(s [^Rope r idx]
-            (if (some? (.-data r))
-              (cond
-                (zero? idx) [(rope) r]
-                (= idx (.-count r)) [r (rope)]
-                :else (mapv #(with-meta (rope %) (.-meta r)) (split-at idx (.-data r))))
-              (if (< idx (.-weight r))
-                (let [[r1 r2] (split (.-left r) idx)]
-                  [r1
-                   (Rope. r2 (.-right r) (.-count r2) (+ (.-count r2) (.-count (.-right r)))
-                          nil (.-meta r))])
-                (let [[r1 r2] (split (.-right r) (- idx (.-weight r)))]
-                  [(Rope. (.-left r) r1 (.-weight r) (+ (.-weight r) (.-count r1)) nil (.-meta r))
-                   r2]))))]
-    (s (if-not (rope? r) (rope r) r) idx)))
+  If the index is within a node, that node's sequence will be split with
+  [[split-at]] or a method specific to the sequence the rope is built over for
+  better performance when possible."
+  [r idx]
+  (let [^Rope r (if-not (rope? r) (rope r) r)]
+    (when (> idx (.-count r))
+      (throw (IndexOutOfBoundsException.)))
+    (letfn [(s [^Rope r idx]
+              (if-some [data (.-data r)]
+                (cond
+                  (zero? idx) [(with-meta (rope) (.-meta r)) r]
+                  (= idx (.-count r)) [r (with-meta (rope) (.-meta r))]
+                  (string? data) [(rope (subs data 0 idx)) (rope (subs data idx))]
+                  (vector? data) [(rope (subvec data 0 idx)) (rope (subvec data idx))]
+                  :else (mapv #(with-meta (rope %) (.-meta r))
+                              (split-at idx data)))
+                (if (< idx (.-weight r))
+                  (let [[^Rope r1 ^Rope r2] (split (.-left r) idx)]
+                    [r1
+                     (Rope. r2 (.-right r) (.-count r2) (+ (.-count r2) (.-count ^Rope (.-right r)))
+                            nil (.-meta r))])
+                  (let [[^Rope r1 ^Rope r2] (split (.-right r) (- idx (.-weight r)))]
+                    [(Rope. (.-left r) r1 (.-weight r) (+ (.-weight r) (.-count r1)) nil (.-meta r))
+                     r2]))))]
+      (s r idx))))
 
 (defn snip
   "Constructs a new rope without the elements from `start` to `end` in logarithmic
