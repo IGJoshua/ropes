@@ -90,16 +90,9 @@
    (reduce concat (list* x y more))))
 
 (defn rope
-  "Constructs a [[Rope]].
-  With no arguments, constructs an empty rope with no elements. With one seqable
-  argument, constructs a rope with its elements. The second argument is a
-  metadata map used to construct the rope. The third optional argument is a
-  count of elements to partition the sequence into in order to ensure that
-  operations upon the rope are not too expensive."
-  ([] (rope nil))
-  ([s] (Rope. nil nil (count s) (count s) s nil))
-  ([s n] (apply concat (partition-all n s)))
-  ([s n m] (with-meta (rope s n) m)))
+  "Constructs a [[Rope]] from the given sequence `s`."
+  (^Rope [] (rope nil))
+  (^Rope [s] (Rope. nil nil (count s) (count s) s nil)))
 
 (defn split
   "Constructs two [[Rope]]s with all the elements before and after `idx` in logarithmic time.
@@ -175,4 +168,4 @@
   (doseq [item (.-data ^Rope v)]
     (print-dup item w)
     (.write ^Writer w " "))
-  (.write ^Writer w "] 100)"))
+  (.write ^Writer w "])"))
