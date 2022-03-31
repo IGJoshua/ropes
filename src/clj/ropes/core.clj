@@ -39,8 +39,8 @@
   IPersistentCollection
   (cons [this s]
     (cond
-      (and data
-           (<= (count data) max-size-for-collapse))
+      (and (flat? this)
+           (< (count data) max-size-for-collapse))
       (Rope. nil nil (inc weight) (inc cnt)
              (cond
                (and (string? data)
@@ -49,9 +49,9 @@
                (vector? data) (conj data s))
              meta)
 
-      (and left right
-           (some? (.-data ^Rope right)))
-      (Rope. left (conj right s) weight (inc cnt) nil meta)
+      (and (not (flat? this))
+           (flat? right))
+      (Rope. left (.cons ^Rope right s) weight (inc cnt) nil meta)
 
       (not (or left right data))
       (Rope. nil nil 1 1 [s] meta)
@@ -116,10 +116,8 @@
         :else (throw (IndexOutOfBoundsException.)))))
 
   Seqable
-  (seq [_]
-    (if (or (some? data)
-            (and (nil? left)
-                 (nil? right)))
+  (seq [this]
+    (if (flat? this)
       (seq data)
       (lazy-cat (seq left) (seq right))))
 
@@ -137,9 +135,10 @@
 (defn flat?
   "Checks if the given rope consists of only one node."
   [^Rope r]
-  (or (.-data r)
-      (not (or (.-left r)
-               (.-right r)))))
+  (boolean
+   (or (.-data r)
+       (not (or (.-left r)
+                (.-right r))))))
 
 (defn node-count
   "Counts the number of nodes used to construct the rope."
