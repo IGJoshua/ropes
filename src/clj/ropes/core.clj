@@ -17,6 +17,10 @@
 
 (def ^:private max-size-for-collapse 512)
 
+;; TODO(Joshua): Consider introducing a tree depth value that will trigger a
+;; rebalance on largely imbalanced trees, e.g. ones with a branch depth > 64,
+;; which would happen infrequently and which, when balanced, could only approach
+;; that depth by vastly exceeding system memory.
 (deftype Rope [left right weight cnt data meta]
   Counted
   (count [_] cnt)
