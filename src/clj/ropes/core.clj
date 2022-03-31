@@ -43,10 +43,13 @@
            (< (count data) max-size-for-collapse))
       (Rope. nil nil (inc weight) (inc cnt)
              (cond
-               (and (string? data)
+               (and (or (nil? data)
+                        (string? data))
                     (or (char? s)
                         (string? s))) (str data s)
-               (vector? data) (conj data s))
+               (vector? data) (conj data s)
+               (nil? data) [s]
+               :else (throw (ex-info "UNREACHABLE: attempted to cons onto a badly-typed rope" {})))
              meta)
 
       (and (not (flat? this))
@@ -56,7 +59,10 @@
       (not (or left right data))
       (Rope. nil nil 1 1 [s] meta)
 
-      :else (Rope. this (rope [s]) cnt (inc cnt) nil meta)))
+      :else (Rope. this (rope (if (or (char? s) (string? s))
+                                (str s)
+                                [s]))
+                   cnt (inc cnt) nil meta)))
   (empty [_this]
     (Rope. nil nil 0 0 nil meta))
   (equiv [this other]
@@ -184,14 +190,15 @@
    (reduce concat (list* x y more))))
 
 (defn rope
-  "Constructs a [[Rope]] from the given sequence `s`.
+  "Constructs a [[Rope]] from the given vector or string `s`.
 
-  The performance of various operations will be dependant on the type of
-  sequence used to construct a rope. For arbitrary values use a vector. A string
-  may be used if the rope is intended to store text."
+  If `s` is not a vector or string, acts like calling [[into]] with an empty
+  rope and the result of calling [[seq]] on `s`."
   (^Rope [] (rope nil))
-  ;; TODO(Joshua): Consider only allowing vectors and strings to have better split performance
-  (^Rope [s] (Rope. nil nil (count s) (count s) s nil)))
+  (^Rope [s]
+   (if (or (string? s) (vector? s))
+     (Rope. nil nil (count s) (count s) s nil)
+     (into (Rope. nil nil 0 0 nil nil) (seq s)))))
 
 (defn split
   "Constructs two [[Rope]]s with all the elements before and after `idx` in logarithmic time.
@@ -210,8 +217,7 @@
                   (= idx (.-cnt r)) [r (with-meta (rope) (.-meta r))]
                   (string? data) [(rope (subs data 0 idx)) (rope (subs data idx))]
                   (vector? data) [(rope (subvec data 0 idx)) (rope (subvec data idx))]
-                  :else (mapv #(with-meta (rope %) (.-meta r))
-                              (split-at idx data)))
+                  :else (throw (ex-info (str "UNREACHABLE: attempted to index an empty or badly-typed rope, but it was not out of bounds") {})))
                 (if (< idx (.-weight r))
                   (let [[^Rope r1 ^Rope r2] (split (.-left r) idx)]
                     [r1
