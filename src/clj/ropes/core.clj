@@ -71,12 +71,12 @@
     (nth this idx nil))
   (nth [_this idx not-found]
     (if data
-      (if (< idx count)
+      (if (< idx cnt)
         (nth data idx not-found)
         (throw (IndexOutOfBoundsException.)))
       (cond
         (< idx weight) (nth left idx not-found)
-        (< idx count) (nth right (- idx weight) not-found)
+        (< idx cnt) (nth right (- idx weight) not-found)
         :else (throw (IndexOutOfBoundsException.)))))
 
   Seqable
