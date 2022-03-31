@@ -9,11 +9,11 @@
   (:import
    (clojure.lang
     Counted IHashEq IMeta Indexed IObj IPersistentCollection
-    Seqable SeqIterator Sequential)
+    IReduce IReduceInit Seqable SeqIterator Sequential)
    (java.io Writer)
    (java.util List)))
 
-(declare rope)
+(declare rope ^:private flat?)
 
 (def ^:private max-size-for-collapse 512)
 
@@ -69,6 +69,38 @@
           (sequential? other))
       (= (seq this) (seq other))
       :else false))
+
+  IReduceInit
+  (reduce [this f init]
+    (if (flat? this)
+      (reduce f init data)
+      (as-> init acc
+        (reduce f acc left)
+        (reduce f acc right))))
+
+  IReduce
+  (reduce [this f]
+    (cond
+      (zero? cnt) (f)
+      ;; NOTE(Joshua): The way ropes are constructed guarantees that if the
+      ;; count of the rope is 1, this must be the only leaf node.
+      (= 1 cnt) (first data)
+      (flat? this) (reduce f data)
+      :else (letfn [(step-reduce
+                      [acc r]
+                      (if (flat? r)
+                        (reduce f acc data)
+                        (-> acc
+                            (step-reduce left)
+                            (step-reduce right))))
+                    (left-reduce
+                      [r]
+                      (if (flat? r)
+                        (reduce f data)
+                        (-> (left-reduce left)
+                            (step-reduce right))))]
+              (-> (left-reduce left)
+                  (step-reduce right)))))
 
   Indexed
   (nth [this idx]

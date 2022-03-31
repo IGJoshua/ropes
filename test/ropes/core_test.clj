@@ -29,7 +29,15 @@
     (t/is (= {:a 1} (meta (with-meta (sut/rope) {:a 1}))) "meta fetched from a rope it's stored on is the same"))
   (t/testing "ropes conform to the hash spec"
     (t/is (= (hash (sut/rope [1 2 3])) (hash [1 2 3]))
-          "a rope's hash is the same as a vector's with the same elements")))
+          "a rope's hash is the same as a vector's with the same elements"))
+  (t/testing "ropes are reducible"
+    (t/is (let [s [1 2 3]]
+            (= (reduce + 0 s) (reduce + 0 (sut/rope s))))
+          "reducing a function over a sequence and a rope produces the same value")
+    (t/is (= 0 (reduce + (sut/rope)))
+          "reducing without an init value and zero elements calls the function with zero arguments")
+    (t/is (= 1 (reduce (constantly :fail) (sut/rope [1])))
+          "reducing without an init value and one element returns the element without calling the function")))
 
 (t/deftest construction
   (t/testing "empty ropes"
