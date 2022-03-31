@@ -74,9 +74,9 @@
   (reduce [this f init]
     (if (flat? this)
       (reduce f init data)
-      (as-> init acc
-        (reduce f acc left)
-        (reduce f acc right))))
+      (->> init
+        (.reduce ^Rope left f)
+        (.reduce ^Rope right f))))
 
   IReduce
   (reduce [this f]
@@ -111,8 +111,8 @@
         (nth data idx not-found)
         (throw (IndexOutOfBoundsException.)))
       (cond
-        (< idx weight) (nth left idx not-found)
-        (< idx cnt) (nth right (- idx weight) not-found)
+        (< idx weight) (.nth ^Rope left idx not-found)
+        (< idx cnt) (.nth ^Rope right (- idx weight) not-found)
         :else (throw (IndexOutOfBoundsException.)))))
 
   Seqable
