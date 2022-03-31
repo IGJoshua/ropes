@@ -66,15 +66,15 @@
 (defn concat
   "Constructs a [[Rope]] with the elements of each input sequence in order in
   constant time."
-  ([] (rope))
-  ([x]
+  (^Rope [] (rope))
+  (^Rope [x]
    (if-not (rope? x) (rope x) x))
-  ([x y]
-   (let [x (if-not (rope? x) (rope x) x)
-         y (if-not (rope? y) (rope y) y)]
+  (^Rope [x y]
+   (let [^Rope x (if-not (rope? x) (rope x) x)
+         ^Rope y (if-not (rope? y) (rope y) y)]
      (Rope. x y (.-count x) (+ (.-count x) (.-count y))
             nil (merge (meta x) (meta y)))))
-  ([x y & more]
+  (^Rope [x y & more]
    (reduce concat (list* x y more))))
 
 (defn rope
@@ -115,9 +115,9 @@
 (defn snip
   "Constructs a new rope without the elements from `start` to `end` in logarithmic
   time."
-  ([^Rope r start]
+  (^Rope [r start]
    (first (split r start)))
-  ([^Rope r start end]
+  (^Rope [r start end]
    (let [[r1 r2] (split r start)
          [_ r2] (split r2 (- end start))]
      (concat r1 r2))))
@@ -125,15 +125,15 @@
 (defn view
   "Constructs a new rope with only the elements from `start` to `end` in
   logarithmic time."
-  ([^Rope r start]
+  (^Rope [r start]
    (second (split r start)))
-  ([^Rope r start end]
+  (^Rope [r start end]
    (first (split (second (split r start)) (- end start)))))
 
 (defn insert
   "Constructs a new rope with the elements of `s` inserted at `idx` in logarithmic
   time."
-  [^Rope r idx s]
+  ^Rope [r idx s]
   (if (< idx (count r))
     (let [[r1 r2] (split r idx)]
       (concat r1 (if-not (rope? s) (rope s) s) r2))
@@ -142,7 +142,7 @@
 (defn replace
   "Constructs a new rope with the elements from `start` to `end` substituted for
   the elements of `s` in logarithmic time."
-  [^Rope r start end s]
+  ^Rope [r start end s]
   (insert (snip r start end) start s))
 
 (defmethod print-method Rope
