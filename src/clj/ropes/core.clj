@@ -15,6 +15,8 @@
 
 (declare rope)
 
+(def ^:private max-size-for-collapse 512)
+
 (deftype Rope [left right weight cnt data meta]
   Counted
   (count [_] cnt)
@@ -33,14 +35,23 @@
   IPersistentCollection
   (cons [this s]
     (cond
-      data (Rope. nil nil (inc weight) (inc cnt)
-                  (cond
-                    (and (string? data)
-                         (or (char? s)
-                             (string? s))) (str data s)
-                    (vector? data) (conj data s))
-                  meta)
-      (some? (.-data ^Rope right)) (Rope. left (conj right s) weight (inc cnt) nil meta)
+      (and data
+           (<= (count data) max-size-for-collapse))
+      (Rope. nil nil (inc weight) (inc cnt)
+             (cond
+               (and (string? data)
+                    (or (char? s)
+                        (string? s))) (str data s)
+               (vector? data) (conj data s))
+             meta)
+
+      (and left right
+           (some? (.-data ^Rope right)))
+      (Rope. left (conj right s) weight (inc cnt) nil meta)
+
+      (not (or left right data))
+      (Rope. nil nil 1 1 [s] meta)
+
       :else (Rope. this (rope [s]) cnt (inc cnt) nil meta)))
   (empty [_this]
     (Rope. nil nil 0 0 nil meta))
@@ -118,10 +129,14 @@
              (flat? y))
         (cond
           (and (string? (.-data x))
-               (string? (.-data y)))
+               (<= (count (.-data x)) max-size-for-collapse)
+               (string? (.-data y))
+               (<= (count (.-data y)) max-size-for-collapse))
           (with-meta (rope (str (.-data x) (.-data y))) (.-meta x))
           (and (vector? (.-data x))
-               (vector? (.-data y)))
+               (<= (count (.-data x)) max-size-for-collapse)
+               (vector? (.-data y))
+               (<= (count (.-data y)) max-size-for-collapse))
           (with-meta (rope (into (.-data x) (.-data y))) (.-meta x)))
 
         (and (flat? y)
