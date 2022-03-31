@@ -15,9 +15,9 @@
 
 (declare rope)
 
-(deftype Rope [left right weight count data meta]
+(deftype Rope [left right weight cnt data meta]
   Counted
-  (count [_] count)
+  (count [_] cnt)
 
   IHashEq
   (hasheq [this]
@@ -25,14 +25,23 @@
 
   IMeta
   (withMeta [_ meta]
-    (Rope. left right weight count data meta))
+    (Rope. left right weight cnt data meta))
 
   IObj
   (meta [_] meta)
 
   IPersistentCollection
   (cons [this s]
-    (Rope. this (rope [s]) count (inc count) nil meta))
+    (cond
+      data (Rope. nil nil (inc weight) (inc cnt)
+                  (cond
+                    (and (string? data)
+                         (or (char? s)
+                             (string? s))) (str data s)
+                    (vector? data) (conj data s))
+                  meta)
+      (some? (.-data ^Rope right)) (Rope. left (conj right s) weight (inc cnt) nil meta)
+      :else (Rope. this (rope [s]) cnt (inc cnt) nil meta)))
   (empty [_this]
     (Rope. nil nil 0 0 nil meta))
   (equiv [this other]
@@ -40,7 +49,8 @@
       (identical? this other) true
       (or (instance? Rope other)
           (instance? List other)
-          (sequential? other)) (= (seq this) (seq other))
+          (sequential? other))
+      (= (seq this) (seq other))
       :else false))
 
   Indexed
@@ -84,7 +94,7 @@
   (^Rope [x y]
    (let [^Rope x (if-not (rope? x) (rope x) x)
          ^Rope y (if-not (rope? y) (rope y) y)]
-     (Rope. x y (.-count x) (+ (.-count x) (.-count y))
+     (Rope. x y (.-cnt x) (+ (.-cnt x) (.-cnt y))
             nil (merge (meta x) (meta y)))))
   (^Rope [x y & more]
    (reduce concat (list* x y more))))
@@ -102,13 +112,13 @@
   better performance when possible."
   [r idx]
   (let [^Rope r (if-not (rope? r) (rope r) r)]
-    (when (> idx (.-count r))
+    (when (> idx (.-cnt r))
       (throw (IndexOutOfBoundsException.)))
     (letfn [(s [^Rope r idx]
               (if-some [data (.-data r)]
                 (cond
                   (zero? idx) [(with-meta (rope) (.-meta r)) r]
-                  (= idx (.-count r)) [r (with-meta (rope) (.-meta r))]
+                  (= idx (.-cnt r)) [r (with-meta (rope) (.-meta r))]
                   (string? data) [(rope (subs data 0 idx)) (rope (subs data idx))]
                   (vector? data) [(rope (subvec data 0 idx)) (rope (subvec data idx))]
                   :else (mapv #(with-meta (rope %) (.-meta r))
@@ -116,10 +126,10 @@
                 (if (< idx (.-weight r))
                   (let [[^Rope r1 ^Rope r2] (split (.-left r) idx)]
                     [r1
-                     (Rope. r2 (.-right r) (.-count r2) (+ (.-count r2) (.-count ^Rope (.-right r)))
+                     (Rope. r2 (.-right r) (.-cnt r2) (+ (.-cnt r2) (.-cnt ^Rope (.-right r)))
                             nil (.-meta r))])
                   (let [[^Rope r1 ^Rope r2] (split (.-right r) (- idx (.-weight r)))]
-                    [(Rope. (.-left r) r1 (.-weight r) (+ (.-weight r) (.-count r1)) nil (.-meta r))
+                    [(Rope. (.-left r) r1 (.-weight r) (+ (.-weight r) (.-cnt r1)) nil (.-meta r))
                      r2]))))]
       (s r idx))))
 
