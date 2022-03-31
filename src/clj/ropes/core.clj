@@ -159,6 +159,7 @@
   sequence used to construct a rope. For arbitrary values use a vector. A string
   may be used if the rope is intended to store text."
   (^Rope [] (rope nil))
+  ;; TODO(Joshua): Consider only allowing vectors and strings to have better split performance
   (^Rope [s] (Rope. nil nil (count s) (count s) s nil)))
 
 (defn split
