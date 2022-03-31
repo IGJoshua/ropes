@@ -13,6 +13,8 @@
     (t/is (= 1 (count (sut/rope [1]))) "a rope with one element has a count of one")
     (t/is (= 1 (count (sut/snip (sut/rope (range 5)) 1))) "a snipped rope keeps its count")
     (t/is (= 2 (count (sut/concat [1] [2]))) "concatenated ropes add their count"))
+  (t/testing "ropes are indexed"
+    (t/is (= 1 (nth (sut/rope [0 1 2]) 1))))
   (t/testing "ropes have collection equality"
     (t/is (= [1 2 3] (sut/rope [1 2 3])) "single node ropes are equal to collections")
     (t/is (= [1 2 3] (conj (sut/rope [1 2]) 3)) "multi-node ropes are equal to collections")
