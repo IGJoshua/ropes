@@ -8,11 +8,10 @@
   (:refer-clojure :exclude [concat split replace])
   (:import
    (clojure.lang
-    Counted IHashEq IMeta IObj IPersistentCollection
+    Counted IHashEq IMeta Indexed IObj IPersistentCollection
     Seqable SeqIterator Sequential)
    (java.io Writer)
-   (java.util List))
-  (:require [clojure.string :as str]))
+   (java.util List)))
 
 (declare rope)
 
@@ -34,7 +33,7 @@
   IPersistentCollection
   (cons [this s]
     (Rope. this (rope [s]) count (inc count) nil meta))
-  (empty [this]
+  (empty [_this]
     (Rope. nil nil 0 0 nil meta))
   (equiv [this other]
     (cond
@@ -43,6 +42,19 @@
           (instance? List other)
           (sequential? other)) (= (seq this) (seq other))
       :else false))
+
+  Indexed
+  (nth [this idx]
+    (nth this idx nil))
+  (nth [_this idx not-found]
+    (if data
+      (if (< idx count)
+        (nth data idx not-found)
+        (throw (IndexOutOfBoundsException.)))
+      (cond
+        (< idx weight) (nth left idx not-found)
+        (< idx count) (nth right (- idx weight) not-found)
+        :else (throw (IndexOutOfBoundsException.)))))
 
   Seqable
   (seq [_]
