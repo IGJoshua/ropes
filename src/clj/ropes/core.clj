@@ -47,6 +47,8 @@
   (equiv [this other]
     (cond
       (identical? this other) true
+      (and (counted? other)
+           (not= cnt (count other))) false
       (or (instance? Rope other)
           (instance? List other)
           (sequential? other))
