@@ -87,6 +87,13 @@
   [r]
   (instance? Rope r))
 
+(defn flat?
+  "Checks if the given rope consists of only one node."
+  [^Rope r]
+  (or (.-data r)
+      (not (or (.-left r)
+               (.-right r)))))
+
 (defn concat
   "Constructs a [[Rope]] with the elements of each input sequence in order in
   constant time."
@@ -96,13 +103,33 @@
   (^Rope [x y]
    (let [^Rope x (if-not (rope? x) (rope x) x)
          ^Rope y (if-not (rope? y) (rope y) y)]
-     (Rope. x y (.-cnt x) (+ (.-cnt x) (.-cnt y))
-            nil (merge (meta x) (meta y)))))
+     (or
+      (cond
+        (and (flat? x)
+             (flat? y))
+        (cond
+          (and (string? (.-data x))
+               (string? (.-data y)))
+          (with-meta (rope (str (.-data x) (.-data y))) (.-meta x))
+          (and (vector? (.-data x))
+               (vector? (.-data y)))
+          (with-meta (rope (into (.-data x) (.-data y))) (.-meta x)))
+
+        (and (flat? y)
+             (flat? (.-right x)))
+        (with-meta (concat (.-left x) (concat (.-right x) y))
+          (.-meta x)))
+      (Rope. x y (.-cnt x) (+ (.-cnt x) (.-cnt y))
+             nil (.-meta x)))))
   (^Rope [x y & more]
    (reduce concat (list* x y more))))
 
 (defn rope
-  "Constructs a [[Rope]] from the given sequence `s`."
+  "Constructs a [[Rope]] from the given sequence `s`.
+
+  The performance of various operations will be dependant on the type of
+  sequence used to construct a rope. For arbitrary values use a vector. A string
+  may be used if the rope is intended to store text."
   (^Rope [] (rope nil))
   (^Rope [s] (Rope. nil nil (count s) (count s) s nil)))
 
