@@ -94,6 +94,15 @@
       (not (or (.-left r)
                (.-right r)))))
 
+(defn node-count
+  "Counts the number of nodes used to construct the rope."
+  [^Rope r]
+  (if-not (flat? r)
+    (+ (node-count (.-left r))
+       (node-count (.-right r))
+       1)
+    1))
+
 (defn concat
   "Constructs a [[Rope]] with the elements of each input sequence in order in
   constant time."
