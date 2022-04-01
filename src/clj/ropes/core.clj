@@ -170,19 +170,31 @@
              (flat? y))
         (cond
           (and (string? (.-data x))
-               (< (count (.-data x)) max-size-for-collapse)
                (string? (.-data y))
-               (< (count (.-data y)) max-size-for-collapse))
+               (< (+ (count (.-data x)) (count (.-data y))) max-size-for-collapse))
           (with-meta (rope (str (.-data x) (.-data y))) (.-meta x))
           (and (vector? (.-data x))
-               (< (count (.-data x)) max-size-for-collapse)
                (vector? (.-data y))
-               (< (count (.-data y)) max-size-for-collapse))
+               (< (+ (count (.-data x)) (count (.-data y))) max-size-for-collapse))
           (with-meta (rope (into (.-data x) (.-data y))) (.-meta x)))
 
         (and (flat? y)
-             (flat? (.-right x)))
-        (with-meta (concat (.-left x) (concat (.-right x) y))
+             (flat? (.-right x))
+             (< (+ (count (.-data ^Rope (.-right x))) (count (.-data y))) max-size-for-collapse))
+        (with-meta
+          (concat (.-left x)
+                  (let [r-data (.-data ^Rope (.-right x))
+                        y-data (.-data y)]
+                    (cond
+                      (and (string? r-data)
+                           (string? y-data))
+                      (rope (str r-data y-data))
+
+                      (and (vector? r-data)
+                           (vector? y-data))
+                      (rope (into r-data y-data))
+
+                      :else (throw (ex-info "UNREACHABLE: attempted to concat ropes of mismatched types" {})))))
           (.-meta x)))
       (Rope. x y (.-cnt x) (+ (.-cnt x) (.-cnt y))
              nil (.-meta x)))))
