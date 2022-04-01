@@ -141,7 +141,18 @@
 
   Iterable
   (iterator [this]
-    (SeqIterator. (seq this))))
+    (SeqIterator. (seq this)))
+
+  Object
+  (toString [this]
+    (.toString
+     (reduce #(.append ^StringBuilder %1 ^String (str %2))
+             ;; NOTE(Joshua): Start at `cnt` because if this is a string-based
+             ;; rope it will never resize. If it is a value-based rope of
+             ;; reasonable size, it will resize fewer times than with the
+             ;; default buffer size.
+             (StringBuilder. cnt)
+             this))))
 
 (defn- rotate-right
   "Rotates deep ropes to the right."
