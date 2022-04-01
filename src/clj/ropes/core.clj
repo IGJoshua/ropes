@@ -170,14 +170,14 @@
              (flat? y))
         (cond
           (and (string? (.-data x))
-               (<= (count (.-data x)) max-size-for-collapse)
+               (< (count (.-data x)) max-size-for-collapse)
                (string? (.-data y))
-               (<= (count (.-data y)) max-size-for-collapse))
+               (< (count (.-data y)) max-size-for-collapse))
           (with-meta (rope (str (.-data x) (.-data y))) (.-meta x))
           (and (vector? (.-data x))
-               (<= (count (.-data x)) max-size-for-collapse)
+               (< (count (.-data x)) max-size-for-collapse)
                (vector? (.-data y))
-               (<= (count (.-data y)) max-size-for-collapse))
+               (< (count (.-data y)) max-size-for-collapse))
           (with-meta (rope (into (.-data x) (.-data y))) (.-meta x)))
 
         (and (flat? y)
