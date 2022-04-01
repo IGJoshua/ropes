@@ -221,7 +221,7 @@
   [r]
   (instance? Rope r))
 
-(defn flat?
+(defn- flat?
   "Checks if the given rope consists of only one node."
   [^Rope r]
   (boolean
@@ -229,7 +229,7 @@
        (not (or (.-left r)
                 (.-right r))))))
 
-(defn node-count
+(defn- node-count
   "Counts the number of nodes used to construct the rope."
   [^Rope r]
   (if-not (flat? r)
