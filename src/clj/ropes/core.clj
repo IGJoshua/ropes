@@ -21,7 +21,7 @@
 ;; rebalance on largely imbalanced trees, e.g. ones with a branch depth > 64,
 ;; which would happen infrequently and which, when balanced, could only approach
 ;; that depth by vastly exceeding system memory.
-(deftype Rope [left right weight cnt data meta]
+(deftype Rope [left right depth weight cnt data meta]
   Counted
   (count [_] cnt)
 
@@ -31,7 +31,7 @@
 
   IMeta
   (withMeta [_ meta]
-    (Rope. left right weight cnt data meta))
+    (Rope. left right depth weight cnt data meta))
 
   IObj
   (meta [_] meta)
@@ -41,7 +41,7 @@
     (cond
       (and (flat? this)
            (< (count data) max-size-for-collapse))
-      (Rope. nil nil (inc weight) (inc cnt)
+      (Rope. nil nil 0 (inc weight) (inc cnt)
              (cond
                (and (or (nil? data)
                         (string? data))
@@ -54,17 +54,21 @@
 
       (and (not (flat? this))
            (flat? right))
-      (Rope. left (.cons ^Rope right s) weight (inc cnt) nil meta)
+      (Rope. left (.cons ^Rope right s)
+             (inc (max (.-depth ^Rope left)
+                       (.-depth ^Rope right)))
+             weight (inc cnt) nil meta)
 
       (not (or left right data))
-      (Rope. nil nil 1 1 [s] meta)
+      (Rope. nil nil 0 1 1 [s] meta)
 
       :else (Rope. this (rope (if (or (char? s) (string? s))
                                 (str s)
                                 [s]))
+                   (inc depth)
                    cnt (inc cnt) nil meta)))
   (empty [_this]
-    (Rope. nil nil 0 0 nil meta))
+    (Rope. nil nil 0 0 0 nil meta))
   (equiv [this other]
     (cond
       (identical? this other) true
@@ -196,7 +200,10 @@
 
                       :else (throw (ex-info "UNREACHABLE: attempted to concat ropes of mismatched types" {})))))
           (.-meta x)))
-      (Rope. x y (.-cnt x) (+ (.-cnt x) (.-cnt y))
+      (Rope. x y
+             (inc (max (.-depth x)
+                       (.-depth y)))
+             (.-cnt x) (+ (.-cnt x) (.-cnt y))
              nil (.-meta x)))))
   (^Rope [x y & more]
    (reduce concat (list* x y more))))
@@ -209,8 +216,8 @@
   (^Rope [] (rope nil))
   (^Rope [s]
    (if (or (string? s) (vector? s))
-     (Rope. nil nil (count s) (count s) s nil)
-     (into (Rope. nil nil 0 0 nil nil) (seq s)))))
+     (Rope. nil nil 0 (count s) (count s) s nil)
+     (into (Rope. nil nil 0 0 0 nil nil) (seq s)))))
 
 (defn split
   "Constructs two [[Rope]]s with all the elements before and after `idx` in logarithmic time.
@@ -233,10 +240,16 @@
                 (if (< idx (.-weight r))
                   (let [[^Rope r1 ^Rope r2] (split (.-left r) idx)]
                     [r1
-                     (Rope. r2 (.-right r) (.-cnt r2) (+ (.-cnt r2) (.-cnt ^Rope (.-right r)))
+                     (Rope. r2 (.-right r)
+                            (inc (max (.-depth r2)
+                                      (.-depth ^Rope (.-right r))))
+                            (.-cnt r2) (+ (.-cnt r2) (.-cnt ^Rope (.-right r)))
                             nil (.-meta r))])
                   (let [[^Rope r1 ^Rope r2] (split (.-right r) (- idx (.-weight r)))]
-                    [(Rope. (.-left r) r1 (.-weight r) (+ (.-weight r) (.-cnt r1)) nil (.-meta r))
+                    [(Rope. (.-left r) r1
+                            (inc (max (.-depth ^Rope (.-left r))
+                                      (.-depth r1)))
+                            (.-weight r) (+ (.-weight r) (.-cnt r1)) nil (.-meta r))
                      r2]))))]
       (s r idx))))
 
