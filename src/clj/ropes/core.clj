@@ -53,7 +53,8 @@
              meta)
 
       (and (not (flat? this))
-           (flat? right))
+           (flat? right)
+           (< (.-cnt right) max-size-for-collapse))
       (Rope. left (.cons ^Rope right s)
              (inc (max (.-depth ^Rope left)
                        (.-depth ^Rope right)))
