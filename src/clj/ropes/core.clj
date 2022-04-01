@@ -13,9 +13,10 @@
    (java.io Writer)
    (java.util List)))
 
-(declare rope ^:private flat?)
+(declare rope ^:private flat? ^:private rebalance)
 
 (def ^:private max-size-for-collapse 512)
+(def ^:private max-depth 64)
 
 ;; TODO(Joshua): Consider introducing a tree depth value that will trigger a
 ;; rebalance on largely imbalanced trees, e.g. ones with a branch depth > 64,
@@ -38,36 +39,40 @@
 
   IPersistentCollection
   (cons [this s]
-    (cond
-      (and (flat? this)
-           (< (count data) max-size-for-collapse))
-      (Rope. nil nil 0 (inc weight) (inc cnt)
-             (cond
-               (and (or (nil? data)
-                        (string? data))
-                    (or (char? s)
-                        (string? s))) (str data s)
-               (vector? data) (conj data s)
-               (nil? data) [s]
-               :else (throw (ex-info "UNREACHABLE: attempted to cons onto a badly-typed rope" {})))
-             meta)
+    (let [^Rope res
+          (cond
+            (and (flat? this)
+                 (< (count data) max-size-for-collapse))
+            (Rope. nil nil 0 (inc weight) (inc cnt)
+                   (cond
+                     (and (or (nil? data)
+                              (string? data))
+                          (or (char? s)
+                              (string? s))) (str data s)
+                     (vector? data) (conj data s)
+                     (nil? data) [s]
+                     :else (throw (ex-info "UNREACHABLE: attempted to cons onto a badly-typed rope" {})))
+                   meta)
 
-      (and (not (flat? this))
-           (flat? right)
-           (< (.-cnt right) max-size-for-collapse))
-      (Rope. left (.cons ^Rope right s)
-             (inc (max (.-depth ^Rope left)
-                       (.-depth ^Rope right)))
-             weight (inc cnt) nil meta)
+            (and (not (flat? this))
+                 (flat? right)
+                 (< (.-cnt right) max-size-for-collapse))
+            (Rope. left (.cons ^Rope right s)
+                   (inc (max (.-depth ^Rope left)
+                             (.-depth ^Rope right)))
+                   weight (inc cnt) nil meta)
 
-      (not (or left right data))
-      (Rope. nil nil 0 1 1 [s] meta)
+            (not (or left right data))
+            (Rope. nil nil 0 1 1 [s] meta)
 
-      :else (Rope. this (rope (if (or (char? s) (string? s))
-                                (str s)
-                                [s]))
-                   (inc depth)
-                   cnt (inc cnt) nil meta)))
+            :else (Rope. this (rope (if (or (char? s) (string? s))
+                                      (str s)
+                                      [s]))
+                         (inc depth)
+                         cnt (inc cnt) nil meta))]
+      (if (> (.-depth res) max-depth)
+        (rebalance res)
+        res)))
   (empty [_this]
     (Rope. nil nil 0 0 0 nil meta))
   (equiv [this other]
@@ -138,6 +143,71 @@
   (iterator [this]
     (SeqIterator. (seq this))))
 
+(defn- rotate-right
+  "Rotates deep ropes to the right."
+  ^Rope [^Rope r]
+  (if (and (not (flat? r))
+           (not (flat? (.-left r))))
+    (let [^Rope lr (.-right ^Rope (.-left r))
+          ^Rope right (Rope. lr (.-right r)
+                             (inc (max (.-depth lr)
+                                       (.-depth ^Rope (.-right r))))
+                             (.-cnt lr) (+ (.-cnt lr) (.-cnt ^Rope (.-right r)))
+                             nil nil)
+          ^Rope left (.-left ^Rope (.-left r))]
+      (Rope. left right
+             (inc (max (.-depth left)
+                       (.-depth right)))
+             (.-cnt left) (+ (.-cnt left) (.-cnt right))
+             nil (.-meta r)))
+    r))
+
+(defn- rotate-left
+  "Rotates deep ropes to the left."
+  ^Rope [^Rope r]
+  (if (and (not (flat? r))
+           (not (flat? (.-right r))))
+    (let [^Rope rl (.-left ^Rope (.-right r))
+          left-cnt (.-cnt ^Rope (.-left r))
+          ^Rope left (Rope. (.-left r) rl
+                            (inc (max (.-depth rl)
+                                      (.-depth ^Rope (.-left r))))
+                            left-cnt (+ left-cnt (.-cnt rl))
+                            nil nil)
+          ^Rope right (.-right ^Rope (.-right r))]
+      (Rope. left right
+             (inc (max (.-depth left)
+                       (.-depth right)))
+             (.-cnt left) (+ (.-cnt left) (.-cnt right))
+             nil (.-meta r)))
+    r))
+
+(defn- rebalance
+  "Recursively balances the rope to be a tree of near-equal depth."
+  ^Rope [^Rope r]
+  (if-not (flat? r)
+    (let [^Rope left (.-left r)
+          ^Rope right (.-right r)
+          ^long diff (- (.-depth right)
+                        (.-depth left))]
+      (if (>= (Math/abs diff) 2)
+        (let [f (if (neg? diff)
+                  rotate-right
+                  rotate-left)]
+          (loop [times (quot (Math/abs diff) 2)
+                 acc r]
+            (if (pos? times)
+              (recur (dec times) (f acc))
+              (let [^Rope left (rebalance (.-left acc))
+                    ^Rope right (rebalance (.-right acc))]
+                (Rope. left right
+                       (inc (max (.-depth left)
+                                 (.-depth right)))
+                       (.-weight acc) (.-cnt acc)
+                       nil (.-meta acc))))))
+        r))
+    r))
+
 (defn rope?
   "Returns true if `r` is a [[Rope]]."
   [r]
@@ -168,44 +238,48 @@
    (if-not (rope? x) (rope x) x))
   (^Rope [x y]
    (let [^Rope x (if-not (rope? x) (rope x) x)
-         ^Rope y (if-not (rope? y) (rope y) y)]
-     (or
-      (cond
-        (and (flat? x)
-             (flat? y))
-        (cond
-          (and (string? (.-data x))
-               (string? (.-data y))
-               (< (+ (count (.-data x)) (count (.-data y))) max-size-for-collapse))
-          (with-meta (rope (str (.-data x) (.-data y))) (.-meta x))
-          (and (vector? (.-data x))
-               (vector? (.-data y))
-               (< (+ (count (.-data x)) (count (.-data y))) max-size-for-collapse))
-          (with-meta (rope (into (.-data x) (.-data y))) (.-meta x)))
+         ^Rope y (if-not (rope? y) (rope y) y)
+         ^Rope res
+         (or
+          (cond
+            (and (flat? x)
+                 (flat? y))
+            (cond
+              (and (string? (.-data x))
+                   (string? (.-data y))
+                   (< (+ (count (.-data x)) (count (.-data y))) max-size-for-collapse))
+              (with-meta (rope (str (.-data x) (.-data y))) (.-meta x))
+              (and (vector? (.-data x))
+                   (vector? (.-data y))
+                   (< (+ (count (.-data x)) (count (.-data y))) max-size-for-collapse))
+              (with-meta (rope (into (.-data x) (.-data y))) (.-meta x)))
 
-        (and (flat? y)
-             (flat? (.-right x))
-             (< (+ (count (.-data ^Rope (.-right x))) (count (.-data y))) max-size-for-collapse))
-        (with-meta
-          (concat (.-left x)
-                  (let [r-data (.-data ^Rope (.-right x))
-                        y-data (.-data y)]
-                    (cond
-                      (and (string? r-data)
-                           (string? y-data))
-                      (rope (str r-data y-data))
+            (and (flat? y)
+                 (flat? (.-right x))
+                 (< (+ (count (.-data ^Rope (.-right x))) (count (.-data y))) max-size-for-collapse))
+            (with-meta
+              (concat (.-left x)
+                      (let [r-data (.-data ^Rope (.-right x))
+                            y-data (.-data y)]
+                        (cond
+                          (and (string? r-data)
+                               (string? y-data))
+                          (rope (str r-data y-data))
 
-                      (and (vector? r-data)
-                           (vector? y-data))
-                      (rope (into r-data y-data))
+                          (and (vector? r-data)
+                               (vector? y-data))
+                          (rope (into r-data y-data))
 
-                      :else (throw (ex-info "UNREACHABLE: attempted to concat ropes of mismatched types" {})))))
-          (.-meta x)))
-      (Rope. x y
-             (inc (max (.-depth x)
-                       (.-depth y)))
-             (.-cnt x) (+ (.-cnt x) (.-cnt y))
-             nil (.-meta x)))))
+                          :else (throw (ex-info "UNREACHABLE: attempted to concat ropes of mismatched types" {})))))
+              (.-meta x)))
+          (Rope. x y
+                 (inc (max (.-depth x)
+                           (.-depth y)))
+                 (.-cnt x) (+ (.-cnt x) (.-cnt y))
+                 nil (.-meta x)))]
+     (if (> (.-depth res) max-depth)
+       (rebalance res)
+       res)))
   (^Rope [x y & more]
    (reduce concat (list* x y more))))
 
