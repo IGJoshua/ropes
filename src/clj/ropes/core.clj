@@ -47,8 +47,7 @@
                    (cond
                      (and (or (nil? data)
                               (string? data))
-                          (or (char? s)
-                              (string? s))) (str data s)
+                          (char? s)) (str data s)
                      (vector? data) (conj data s)
                      (nil? data) [s]
                      :else (throw (ex-info "UNREACHABLE: attempted to cons onto a badly-typed rope" {})))
@@ -65,9 +64,7 @@
             (not (or left right data))
             (Rope. nil nil 0 1 1 [s] meta)
 
-            :else (Rope. this (rope (if (or (char? s) (string? s))
-                                      (str s)
-                                      [s]))
+            :else (Rope. this (rope (if (char? s) (str s) [s]))
                          (inc depth)
                          cnt (inc cnt) nil meta))]
       (if (> (.-depth res) max-depth)
