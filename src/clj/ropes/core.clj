@@ -290,21 +290,23 @@
             (and (flat? y)
                  (flat? (.-right x))
                  (< (+ (count (.-data ^Rope (.-right x))) (count (.-data y))) max-size-for-collapse))
-            (with-meta
-              (concat (.-left x)
-                      (let [r-data (.-data ^Rope (.-right x))
-                            y-data (.-data y)]
-                        (cond
-                          (and (string? r-data)
-                               (string? y-data))
-                          (rope (str r-data y-data))
+            (let [new-left (.-left x)
+                  new-right (let [r-data (.-data ^Rope (.-right x))
+                                  y-data (.-data y)]
+                              (cond
+                                (and (string? r-data)
+                                     (string? y-data))
+                                (rope (str r-data y-data))
 
-                          (and (vector? r-data)
-                               (vector? y-data))
-                          (rope (into r-data y-data))
-
-                          :else (throw (ex-info "UNREACHABLE: attempted to concat ropes of mismatched types" {})))))
-              (.-meta x)))
+                                (and (vector? r-data)
+                                     (vector? y-data))
+                                (rope (into r-data y-data))))]
+              (when new-right
+                (Rope. new-left new-right
+                       (inc (max (.-depth new-left)
+                                 (.-depth new-right)))
+                       (.-cnt new-left) (+ (.-cnt new-left) (.-cnt new-right))
+                       nil (.-meta x)))))
           (Rope. x y
                  (inc (max (.-depth x)
                            (.-depth y)))
