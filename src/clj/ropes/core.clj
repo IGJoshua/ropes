@@ -112,17 +112,24 @@
                   (step-reduce right)))))
 
   Indexed
-  (nth [this idx]
-    (nth this idx nil))
+  (nth [_this idx]
+    (if data
+      (if (< idx cnt)
+        (nth data idx)
+        (throw (IndexOutOfBoundsException.)))
+      (cond
+        (< idx weight) (.nth ^Rope left idx)
+        (< idx cnt) (.nth ^Rope right (- idx weight))
+        :else (throw (IndexOutOfBoundsException.)))))
   (nth [_this idx not-found]
     (if data
       (if (< idx cnt)
-        (nth data idx not-found)
-        (throw (IndexOutOfBoundsException.)))
+        (nth data idx)
+        not-found)
       (cond
         (< idx weight) (.nth ^Rope left idx not-found)
         (< idx cnt) (.nth ^Rope right (- idx weight) not-found)
-        :else (throw (IndexOutOfBoundsException.)))))
+        :else not-found)))
 
   Seqable
   (seq [this]
