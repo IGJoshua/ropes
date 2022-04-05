@@ -11,9 +11,10 @@
     Counted IHashEq IMeta Indexed IObj IPersistentCollection
     IReduce IReduceInit Seqable SeqIterator Sequential)
    (java.io Writer)
-   (java.util List)))
+   (java.util List)
+   (java.util.stream IntStream)))
 
-(declare rope ^:private flat? ^:private rebalance)
+(declare rope ^:private flat? ^:private rebalance view)
 
 (def ^:private max-size-for-collapse 512)
 (def ^:private max-depth 64)
@@ -142,6 +143,27 @@
   Iterable
   (iterator [this]
     (SeqIterator. (seq this)))
+
+  CharSequence
+  (charAt [this index]
+    (.nth this index))
+  (length [_this] (int cnt))
+  (subSequence [this start end]
+    (view this start end))
+  (chars [this]
+    (if (flat? this)
+      (if (string? data)
+        (.chars ^CharSequence data)
+        (throw (IllegalStateException. "Attempted to treat a non-string rope as a character sequence")))
+      (IntStream/concat (.chars ^CharSequence left)
+                        (.chars ^CharSequence right))))
+  (codePoints [this]
+    (if (flat? this)
+      (if (string? data)
+        (.codePoints ^CharSequence data)
+        (throw (IllegalStateException. "Attempted to treat a non-string rope as a character sequence")))
+      (IntStream/concat (.codePoints ^CharSequence left)
+                        (.codePoints ^CharSequence right))))
 
   Object
   (toString [this]
