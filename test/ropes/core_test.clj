@@ -89,3 +89,9 @@
     (t/is (let [r (sut/rope [1 2 3])]
             (= r (edn/read-string {:readers {'rope sut/rope}} (pr-str r))))
           "read ropes are equal to constructed ones")))
+
+(t/deftest regex
+  (t/is (re-matches #"a+" (sut/rope "aaaaa"))
+        "flat ropes match regexes")
+  (t/is (re-matches #"a+" (into (sut/rope) (repeat 1000 \a)))
+        "deep ropes match regexes"))
