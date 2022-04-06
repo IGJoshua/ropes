@@ -52,7 +52,7 @@
 
             (and (not (flat? this))
                  (flat? right)
-                 (< (.-cnt right) max-size-for-collapse))
+                 (< (.-cnt ^Rope right) max-size-for-collapse))
             (Rope. left (.cons ^Rope right s)
                    (inc (max (.-depth ^Rope left)
                              (.-depth ^Rope right)))
@@ -168,12 +168,13 @@
   Object
   (toString [this]
     (.toString
+     ^StringBuilder
      (reduce #(.append ^StringBuilder %1 ^String (str %2))
              ;; NOTE(Joshua): Start at `cnt` because if this is a string-based
              ;; rope it will never resize. If it is a value-based rope of
              ;; reasonable size, it will resize fewer times than with the
              ;; default buffer size.
-             (StringBuilder. cnt)
+             (StringBuilder. (int cnt))
              this))))
 
 (defn- rotate-right
@@ -290,17 +291,17 @@
             (and (flat? y)
                  (flat? (.-right x))
                  (< (+ (count (.-data ^Rope (.-right x))) (count (.-data y))) max-size-for-collapse))
-            (let [new-left (.-left x)
-                  new-right (let [r-data (.-data ^Rope (.-right x))
-                                  y-data (.-data y)]
-                              (cond
-                                (and (string? r-data)
-                                     (string? y-data))
-                                (rope (str r-data y-data))
+            (let [^Rope new-left (.-left x)
+                  ^Rope new-right (let [r-data (.-data ^Rope (.-right x))
+                                        y-data (.-data y)]
+                                    (cond
+                                      (and (string? r-data)
+                                           (string? y-data))
+                                      (rope (str r-data y-data))
 
-                                (and (vector? r-data)
-                                     (vector? y-data))
-                                (rope (into r-data y-data))))]
+                                      (and (vector? r-data)
+                                           (vector? y-data))
+                                      (rope (into r-data y-data))))]
               (when new-right
                 (Rope. new-left new-right
                        (inc (max (.-depth new-left)
