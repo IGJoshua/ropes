@@ -28,11 +28,11 @@
     (hash-ordered-coll (seq this)))
 
   IMeta
-  (withMeta [_ meta]
-    (Rope. left right depth weight cnt data meta))
+  (meta [_] meta)
 
   IObj
-  (meta [_] meta)
+  (withMeta [_ meta]
+    (Rope. left right depth weight cnt data meta))
 
   IPersistentCollection
   (cons [this s]
