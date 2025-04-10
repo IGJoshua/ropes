@@ -19,20 +19,22 @@
 (def ^:private max-size-for-collapse 512)
 (def ^:private max-depth 64)
 
-(deftype Rope [left right depth weight cnt data meta]
+(deftype Rope [left right depth weight cnt data meta
+               ^:unsynchronized-mutable _hasheq]
   Counted
   (count [_] cnt)
 
   IHashEq
   (hasheq [this]
-    (hash-ordered-coll (seq this)))
+    (or _hasheq
+        (set! _hasheq (hash-ordered-coll this))))
 
   IMeta
   (meta [_] meta)
 
   IObj
   (withMeta [_ meta]
-    (Rope. left right depth weight cnt data meta))
+    (Rope. left right depth weight cnt data meta _hasheq))
 
   IPersistentCollection
   (cons [this s]
@@ -48,7 +50,7 @@
                      (vector? data) (conj data s)
                      (nil? data) [s]
                      :else (throw (ex-info "UNREACHABLE: attempted to cons onto a badly-typed rope" {})))
-                   meta)
+                   meta nil)
 
             (and (not (flat? this))
                  (flat? right)
@@ -56,19 +58,19 @@
             (Rope. left (.cons ^Rope right s)
                    (inc (max (.-depth ^Rope left)
                              (.-depth ^Rope right)))
-                   weight (inc cnt) nil meta)
+                   weight (inc cnt) nil meta nil)
 
             (not (or left right data))
-            (Rope. nil nil 0 1 1 [s] meta)
+            (Rope. nil nil 0 1 1 [s] meta nil)
 
             :else (Rope. this (rope (if (char? s) (str s) [s]))
                          (inc depth)
-                         cnt (inc cnt) nil meta))]
+                         cnt (inc cnt) nil meta nil))]
       (if (> (.-depth res) max-depth)
         (rebalance res)
         res)))
   (empty [_this]
-    (Rope. nil nil 0 0 0 nil meta))
+    (Rope. nil nil 0 0 0 nil meta nil))
   (equiv [this other]
     (cond
       (identical? this other) true
@@ -187,13 +189,13 @@
                              (inc (max (.-depth lr)
                                        (.-depth ^Rope (.-right r))))
                              (.-cnt lr) (+ (.-cnt lr) (.-cnt ^Rope (.-right r)))
-                             nil nil)
+                             nil nil nil)
           ^Rope left (.-left ^Rope (.-left r))]
       (Rope. left right
              (inc (max (.-depth left)
                        (.-depth right)))
              (.-cnt left) (+ (.-cnt left) (.-cnt right))
-             nil (.-meta r)))
+             nil (.-meta r) nil))
     r))
 
 (defn- rotate-left
@@ -207,13 +209,13 @@
                             (inc (max (.-depth rl)
                                       (.-depth ^Rope (.-left r))))
                             left-cnt (+ left-cnt (.-cnt rl))
-                            nil nil)
+                            nil nil nil)
           ^Rope right (.-right ^Rope (.-right r))]
       (Rope. left right
              (inc (max (.-depth left)
                        (.-depth right)))
              (.-cnt left) (+ (.-cnt left) (.-cnt right))
-             nil (.-meta r)))
+             nil (.-meta r) nil))
     r))
 
 (defn- rebalance
@@ -238,7 +240,7 @@
                        (inc (max (.-depth left)
                                  (.-depth right)))
                        (.-weight acc) (.-cnt acc)
-                       nil (.-meta acc))))))
+                       nil (.-meta acc) nil)))))
         r))
     r))
 
@@ -307,12 +309,12 @@
                        (inc (max (.-depth new-left)
                                  (.-depth new-right)))
                        (.-cnt new-left) (+ (.-cnt new-left) (.-cnt new-right))
-                       nil (.-meta x)))))
+                       nil (.-meta x) nil))))
           (Rope. x y
                  (inc (max (.-depth x)
                            (.-depth y)))
                  (.-cnt x) (+ (.-cnt x) (.-cnt y))
-                 nil (.-meta x)))]
+                 nil (.-meta x) nil))]
      (if (> (.-depth res) max-depth)
        (rebalance res)
        res)))
@@ -327,8 +329,8 @@
   (^Rope [] (rope nil))
   (^Rope [s]
    (if (or (string? s) (vector? s))
-     (Rope. nil nil 0 (count s) (count s) s nil)
-     (into (Rope. nil nil 0 0 0 nil nil) (seq s)))))
+     (Rope. nil nil 0 (count s) (count s) s nil nil)
+     (into (Rope. nil nil 0 0 0 nil nil nil) (seq s)))))
 
 (defn split
   "Constructs two [[Rope]]s with all the elements before and after `idx` in logarithmic time.
@@ -355,12 +357,12 @@
                             (inc (max (.-depth r2)
                                       (.-depth ^Rope (.-right r))))
                             (.-cnt r2) (+ (.-cnt r2) (.-cnt ^Rope (.-right r)))
-                            nil (.-meta r))])
+                            nil (.-meta r) nil)])
                   (let [[^Rope r1 ^Rope r2] (split (.-right r) (- idx (.-weight r)))]
                     [(Rope. (.-left r) r1
                             (inc (max (.-depth ^Rope (.-left r))
                                       (.-depth r1)))
-                            (.-weight r) (+ (.-weight r) (.-cnt r1)) nil (.-meta r))
+                            (.-weight r) (+ (.-weight r) (.-cnt r1)) nil (.-meta r) nil)
                      r2]))))]
       (s r idx))))
 
