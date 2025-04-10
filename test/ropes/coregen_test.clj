@@ -131,6 +131,7 @@
   ([_ prev _ start end s]
    (let [[start end] (->index prev start end)]
     (into []
+          cat
           [(subvec prev 0 start)
            s
            (subvec prev end)]))))
