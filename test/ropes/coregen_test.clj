@@ -112,7 +112,7 @@
 
 (defmethod apply-op [:vector :snip]
   ([_ prev _ start]
-   (subvec prev (->index prev start)))
+   (subvec prev 0 (->index prev start)))
   ([_ prev _ start end]
    (let [[start end] (->index prev start end)]
      (into []
