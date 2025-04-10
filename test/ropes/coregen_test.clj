@@ -11,9 +11,11 @@
    (java.util ArrayList)))
 
 
-;; instead of generating regular indexes,
-;; generate numbers in the range (0.0 , count)
-;; so that the index can apply to any size eop
+;; Instead of generating regular indices,
+;; generate numbers in the range [0.0 , 1.0]
+;; so that the index can apply to any size rope.
+;; These "normalized" indices are then converted
+;; to actual indices when the op is applied.
 (s/def ::normalized-index (s/double-in :min 0 :max 1))
 (defn ->index
   "Given a double, in the range [0.0,1.0] return an index [0, (count `coll`)].
@@ -38,6 +40,7 @@
 
 (s/def ::view-op (s/spec (s/cat :op #{:view} :start ::normalized-index :end (s/? ::normalized-index))) )
 
+;; % is used as a placeholder for referencing the previous rope passed to the op.
 (s/def ::concat-op (s/spec (s/cat :op #{:concat} :ropes (s/* (s/or :new-rope ::new-rope-op
                                                                    :last-rope '#{%})) )))
 
@@ -56,6 +59,8 @@
                   :snip ::snip-op
                   :replace ::replace-op
                   :split ::split-op))
+
+;; make sure we start with :new op.
 (s/def ::ops (s/cat :new ::new-rope-op :more (s/* ::op)))
 
 (comment
@@ -91,6 +96,7 @@
    (let [[start end] (->index prev start end)]
     (subvec prev start end))))
 
+;; % is used as a placeholder for referencing the previous rope passed to the op.
 (defmethod apply-op [:vector :concat]
   ([_ prev _ & args]
    (into []
@@ -150,6 +156,7 @@
    (let [[start end] (->index prev start end)]
      (sut/view prev start end))))
 
+;; % is used as a placeholder for referencing the previous rope passed to the op.
 (defmethod apply-op [:rope :concat]
   ([_ prev _ & args]
    (apply sut/concat
