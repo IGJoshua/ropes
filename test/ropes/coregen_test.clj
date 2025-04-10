@@ -60,8 +60,15 @@
                   :replace ::replace-op
                   :split ::split-op))
 
+(s/def ::op-not-new (s/or :view ::view-op
+                          :concat ::concat-op
+                          :insert ::insert-op
+                          :snip ::snip-op
+                          :replace ::replace-op
+                          :split ::split-op))
+
 ;; make sure we start with :new op.
-(s/def ::ops (s/cat :new ::new-rope-op :more (s/* ::op)))
+(s/def ::ops (s/cat :new ::new-rope-op :more (s/* ::op-not-new)))
 
 (comment
   (gen/sample (s/gen ::new-rope-op))
