@@ -44,11 +44,15 @@
                  (< (count data) max-size-for-collapse))
             (Rope. nil nil 0 (inc weight) (inc cnt)
                    (cond
-                     (and (or (nil? data)
-                              (string? data))
-                          (char? s)) (str data s)
+                     (string? data) (if (char? s)
+                                      (str data s)
+                                      ;; convert string data to vector
+                                      (conj (vec data) s))
+
                      (vector? data) (conj data s)
-                     (nil? data) [s]
+                     (nil? data) (if (char? s)
+                                   (str s)
+                                   [s])
                      :else (throw (ex-info "UNREACHABLE: attempted to cons onto a badly-typed rope" {})))
                    meta nil)
 
