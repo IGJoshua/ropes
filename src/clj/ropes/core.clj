@@ -282,6 +282,9 @@
          ^Rope res
          (or
           (cond
+            (zero? (.-cnt x)) y
+            (zero? (.-cnt y)) x
+
             (and (flat? x)
                  (flat? y))
             (cond
