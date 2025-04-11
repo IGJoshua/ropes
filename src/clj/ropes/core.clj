@@ -335,29 +335,31 @@
   (let [^Rope r (if-not (rope? r) (rope r) r)]
     (when (> idx (.-cnt r))
       (throw (IndexOutOfBoundsException.)))
-    (letfn [(s [^Rope r idx]
-              (if-some [data (.-data r)]
-                (cond
-                  (zero? idx) [(with-meta (rope) (.-meta r)) r]
-                  (= idx (.-cnt r)) [r (with-meta (rope) (.-meta r))]
-                  (string? data) [(rope (subs data 0 idx)) (rope (subs data idx))]
-                  (vector? data) [(rope (subvec data 0 idx)) (rope (subvec data idx))]
-                  :else (throw (ex-info (str "UNREACHABLE: attempted to index an empty or badly-typed rope, but it was not out of bounds") {})))
-                (if (< idx (.-weight r))
-                  (let [[^Rope r1 ^Rope r2] (split (.-left r) idx)]
-                    [r1
-                     (Rope. r2 (.-right r)
-                            (inc (max (.-depth r2)
-                                      (.-depth ^Rope (.-right r))))
-                            (.-cnt r2) (+ (.-cnt r2) (.-cnt ^Rope (.-right r)))
-                            nil (.-meta r) nil)])
-                  (let [[^Rope r1 ^Rope r2] (split (.-right r) (- idx (.-weight r)))]
-                    [(Rope. (.-left r) r1
-                            (inc (max (.-depth ^Rope (.-left r))
-                                      (.-depth r1)))
-                            (.-weight r) (+ (.-weight r) (.-cnt r1)) nil (.-meta r) nil)
-                     r2]))))]
-      (s r idx))))
+    (if (zero? (.-cnt r))
+      [r r]
+      (letfn [(s [^Rope r idx]
+                (if-some [data (.-data r)]
+                  (cond
+                    (zero? idx) [(with-meta (rope) (.-meta r)) r]
+                    (= idx (.-cnt r)) [r (with-meta (rope) (.-meta r))]
+                    (string? data) [(rope (subs data 0 idx)) (rope (subs data idx))]
+                    (vector? data) [(rope (subvec data 0 idx)) (rope (subvec data idx))]
+                    :else (throw (ex-info (str "UNREACHABLE: attempted to index an empty or badly-typed rope, but it was not out of bounds") {})))
+                  (if (< idx (.-weight r))
+                    (let [[^Rope r1 ^Rope r2] (split (.-left r) idx)]
+                      [r1
+                       (Rope. r2 (.-right r)
+                              (inc (max (.-depth r2)
+                                        (.-depth ^Rope (.-right r))))
+                              (.-cnt r2) (+ (.-cnt r2) (.-cnt ^Rope (.-right r)))
+                              nil (.-meta r) nil)])
+                    (let [[^Rope r1 ^Rope r2] (split (.-right r) (- idx (.-weight r)))]
+                      [(Rope. (.-left r) r1
+                              (inc (max (.-depth ^Rope (.-left r))
+                                        (.-depth r1)))
+                              (.-weight r) (+ (.-weight r) (.-cnt r1)) nil (.-meta r) nil)
+                       r2]))))]
+        (s r idx)))))
 
 (defn snip
   "Constructs a new rope without the elements from `start` to `end` in logarithmic
