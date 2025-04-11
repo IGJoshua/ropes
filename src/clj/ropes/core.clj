@@ -102,21 +102,7 @@
       ;; count of the rope is 1, this must be the only leaf node.
       (= 1 cnt) (first data)
       (flat? this) (reduce f data)
-      :else (letfn [(step-reduce
-                      [acc r]
-                      (if (flat? r)
-                        (reduce f acc data)
-                        (-> acc
-                            (step-reduce left)
-                            (step-reduce right))))
-                    (left-reduce
-                      [r]
-                      (if (flat? r)
-                        (reduce f data)
-                        (-> (left-reduce left)
-                            (step-reduce right))))]
-              (-> (left-reduce left)
-                  (step-reduce right)))))
+      :else (reduce f (seq this))))
 
   Indexed
   (nth [_this idx]
