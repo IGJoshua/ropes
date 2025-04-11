@@ -67,8 +67,44 @@
                           :replace ::replace-op
                           :split ::split-op))
 
+(s/def ::seq-op (s/spec (s/cat :f #{`seq})))
+(s/def ::count-op (s/spec (s/cat :f #{`count})))
+(defn ->nth-index [coll normalized-index]
+  (Math/round (* (dec (count coll)) normalized-index)))
+(defn nth-normalized
+  ([o idx]
+   (when (seq o)
+     (nth o (->nth-index o idx))))
+  ([o idx not-found]
+   (nth o (->nth-index o idx) not-found)))
+(s/def ::nth-op (s/spec (s/cat :f #{`nth-normalized} :idx ::normalized-index :not-found (s/? any?) )))
+
+(defn hasheq [o] (.hasheq o))
+(s/def ::hasheq-op (s/spec (s/cat :f #{`hasheq})))
+
+(s/def ::conj-op (s/spec (s/cat :f #{`conj} :args (s/* any?))))
+(defn reduce-test
+  ([coll]
+   (reduce (fn
+             ([] coll)
+             ([coll x] coll))
+           coll))
+  ([coll init]
+    (reduce (fn [coll x] coll) init coll)))
+(s/def ::reduce-op (s/spec (s/cat :f #{`reduce-test}
+                                  :init (s/? any?))))
+
+(s/def ::protocol-op (s/or :nth ::nth-op
+                           :hasheq ::hasheq-op
+                           :conj ::conj-op
+                           :reduce ::reduce-op
+                           :seq ::seq-op
+                           :count ::count-op))
+
+
 ;; make sure we start with :new op.
-(s/def ::ops (s/cat :new ::new-rope-op :more (s/* ::op-not-new)))
+;; protocol ops might not return a rope, so they can only be last.
+(s/def ::ops (s/cat :new ::new-rope-op :more (s/* ::op-not-new) :last (s/? ::protocol-op)))
 
 (comment
   (gen/sample (s/gen ::new-rope-op))
@@ -88,6 +124,13 @@
 (defmulti apply-op (fn [impl-type prev op-type & op-args]
                      [impl-type op-type]))
 
+;; by default assume op is a single dispatch function
+(defmethod apply-op :default
+  ([impl-type prev op & op-args]
+   (let [f (if (symbol? op)
+             (resolve op)
+             op)]
+     (apply f prev op-args))))
 
 (defmethod apply-op [:vector :new]
   ([_ _ _]
@@ -205,30 +248,6 @@
    nil
    ops))
 
-(comment
-  (apply-ops :rope (gen/generate (s/gen ::ops)))
-
-  (def my-ops (gen/sample (s/gen ::ops) 1000))
-  (def matches (atom []))
-  (def running? (atom true))
-  (defn stop []
-    (reset! running? false))
-  (future
-    (reset! running? true)
-    (doseq [ops my-ops
-            :when @running? ]
-      (let [success? (try
-                       (= (apply-ops :vector ops)
-                          (apply-ops :rope ops))
-                       (catch Throwable t
-                         nil))]
-        (when success?
-          (let [new-matches (swap! matches conj ops)]
-            (println "found match!" (count new-matches)))))))
-
-  ,)
-
-
 (defn compare-ops [ops]
   (= (apply-ops :vector ops)
      (apply-ops :rope ops)))
@@ -237,8 +256,54 @@
   :ret true?)
 
 
+(defn results->shrunk [fail]
+  (-> fail
+      first
+      :clojure.spec.test.check/ret
+      :shrunk
+      :smallest
+      first
+      first
+      ))
+
+(defn results->fail [fail]
+  (-> (stest/check `compare-ops)
+      first
+      :clojure.spec.test.check/ret
+      :fail
+      first
+      first))
 
 (comment
-  (stest/check `compare-ops)
-
+  (def results (stest/check `compare-ops))
+  
   ,)
+
+(t/deftest reduce-ops
+  (t/testing "reduce no-init"
+    (t/is (compare-ops '((:new nil)
+                         (:concat (:new [nil]))
+                         (:replace 1.0 1.0 "00")
+                         (ropes.coregen-test/reduce-test)))
+          "reduce with 1 size data on left")
+    (t/is (compare-ops '((:new nil)
+                         (:concat (:new (0)) (:new))
+                         (ropes.coregen-test/reduce-test)))
+          "reduce with concatting empty ropes")))
+
+(t/deftest switching-data-storage
+  (t/testing "switching string to vector storage"
+    (t/is (compare-ops '((:new nil)
+                         (:insert 1.0 (\space 0))
+                         (ropes.coregen-test/nth-normalized 1.0 nil))))))
+
+(t/deftest split-ops
+  (t/testing "splitting"
+    (t/is (compare-ops '((:new nil)
+                         (:view 1.0 1.0)))
+          "Splitting empty rope.")))
+
+(t/deftest nth-ops
+  (t/testing "calling nth on empty rope"
+    (t/is (compare-ops '((:new nil)
+                         (ropes.coregen-test/nth-normalized 1.0 nil))))))
