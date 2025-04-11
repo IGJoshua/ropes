@@ -120,6 +120,7 @@
         (nth data idx)
         not-found)
       (cond
+        (zero? cnt) not-found
         (< idx weight) (.nth ^Rope left idx not-found)
         (< idx cnt) (.nth ^Rope right (- idx weight) not-found)
         :else not-found)))
