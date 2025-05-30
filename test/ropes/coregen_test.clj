@@ -256,18 +256,17 @@
   :ret true?)
 
 
-(defn results->shrunk [fail]
-  (-> fail
+(defn results->shrunk [results]
+  (-> results
       first
       :clojure.spec.test.check/ret
       :shrunk
       :smallest
       first
-      first
-      ))
+      first))
 
-(defn results->fail [fail]
-  (-> (stest/check `compare-ops)
+(defn results->fail [results]
+  (-> results
       first
       :clojure.spec.test.check/ret
       :fail
