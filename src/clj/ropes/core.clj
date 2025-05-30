@@ -138,7 +138,7 @@
   (seq [this]
     (if (flat? this)
       (seq data)
-      (lazy-cat (seq left) (seq right))))
+      (seq (lazy-cat (seq left) (seq right)))))
 
   Sequential
 
