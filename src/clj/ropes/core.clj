@@ -102,6 +102,11 @@
       ;; count of the rope is 1, this must be the only leaf node.
       (= 1 cnt) (first data)
       (flat? this) (reduce f data)
+      ;; TODO(Joshua): Consider if a faster impl of this can be created using
+      ;; something parallel to the old step-reduce/left-reduce split, but
+      ;; considering that reduce without init needs *two* elements to determine
+      ;; what its return result might be, and the left side may only have one of
+      ;; the two elements.
       :else (reduce f (seq this))))
 
   Indexed
