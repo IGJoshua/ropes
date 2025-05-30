@@ -16,3 +16,4 @@
 .hgignore
 .hg/
 **/.dir-locals.el
+**/.direnv/
